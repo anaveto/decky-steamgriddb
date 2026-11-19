@@ -3,6 +3,7 @@ import {
   fakeRenderComponent,
   findInReactTree,
   findModuleByExport,
+  findModuleExport,
   Export,
   MenuItem,
   Navigation,
@@ -137,12 +138,14 @@ const contextMenuPatch = (LibraryContextMenu: any) => {
 /**
  * Game context menu component.
  */
-export const LibraryContextMenu = fakeRenderComponent(
-  Object.values(
-    findModuleByExport((e: Export) => e?.toString && e.toString().includes('().LibraryContextMenu'))
-  ).find((sibling) => (
-    sibling?.toString().includes('navigator:')
-  )) as FC
-).type;
+const libraryContextMenuModule = findModuleByExport((e: Export) => e?.toString && e.toString().includes('().LibraryContextMenu'));
+export const LibraryContextMenu = libraryContextMenuModule
+  ? fakeRenderComponent(
+    Object.values(libraryContextMenuModule).find((sibling) => (
+      sibling?.toString().includes('navigator:')
+    )) as FC
+  ).type
+  // Vite builds of Steam inline the class name: find the menu class by its methods
+  : findModuleExport((e: Export) => e?.prototype?.GetTargetApps && e?.prototype?.render);
 
 export default contextMenuPatch;

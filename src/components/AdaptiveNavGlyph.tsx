@@ -4,6 +4,7 @@ import {
   findModuleByExport,
   fakeRenderComponent,
   createModuleMapping,
+  modules,
 } from '@decky/ui';
 
 type AdaptiveNavGlyphProps = {
@@ -13,7 +14,21 @@ type AdaptiveNavGlyphProps = {
   className?: string;
 };
 
-let glyphModules = findModuleByExport((e) => typeof e === 'function' && e.toString().includes('GamepadUI_KeyboardNavGlyphsDisabled'));
+// Vite builds of Steam have no glyph module: try the memo components that Steam renders with a button prop, most used first
+const viteGlyphCandidates = (viteScope: Module) => {
+  const counts = new Map<string, number>();
+  for (const e of Object.values(viteScope)) {
+    if (typeof e !== 'function') continue;
+    for (const match of e.toString().matchAll(/\(0,[\w$]+\.jsxs?\)\(([\w$]+),\{button:/g)) {
+      counts.set(match[1], (counts.get(match[1]) ?? 0) + 1);
+    }
+  }
+  return [...counts].sort((a, b) => b[1] - a[1]).map(([name]) => viteScope[name]);
+};
+
+let glyphModules = modules.get('vite')
+  ? viteGlyphCandidates(modules.get('vite'))
+  : findModuleByExport((e) => typeof e === 'function' && e.toString().includes('GamepadUI_KeyboardNavGlyphsDisabled'));
 if (!glyphModules) {
   // filter down to modules that only have 2 exports that are memoized components
   // super unstable but all this will never run once steam switches thge current beta to stable
